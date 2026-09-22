@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>湊十法小達人：3 + 9</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Friendly typography -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Noto+Sans+TC:wght@400;700;900&display=swap">
+  <style>
+    body {
+      font-family: 'Fredoka', 'Noto Sans TC', sans-serif;
+      background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 50%, #fce7f3 100%);
+      min-height: 100vh;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Custom Animations & Glows */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.6), 0 0 30px rgba(34, 197, 94, 0.4); }
+      50% { box-shadow: 0 0 25px rgba(34, 197, 94, 0.9), 0 0 50px rgba(34, 197, 94, 0.7); }
+    }
+
+    .ten-frame-glow {
+      animation: pulse-glow 1.8s infinite ease-in-out;
+      border-color: #22c55e !important;
+    }
+
+    @keyframes pop-in {
+      0% { transform: scale(0.3); opacity: 0; }
+      70% { transform: scale(1.15); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .animate-pop {
+      animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    .shake-anim {
+      animation: shake 0.4s ease-in-out;
+    }
+
+    /* Drag over highlight */
+    .slot-hover {
+      background-color: #fef08a !important;
+      border-color: #eab308 !important;
+      transform: scale(1.05);
+    }
+
+    /* Confetti Canvas positioning */
+    #confetti-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-between min-h-screen p-4 md:p-6 text-slate-800">
+
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Main Container -->
+  <div class="w-full max-w-4xl bg-white/90 backdrop-blur-md rounded-3xl shadow-2xl p-4 sm:p-8 border-4 border-amber-200 flex flex-col justify-between my-auto relative z-10">
+
+    <!-- Header / Title Banner -->
+    <header class="text-center mb-6">
+      <div class="inline-block bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 text-white px-6 py-2 rounded-full shadow-lg text-lg sm:text-2xl font-black tracking-wide transform -rotate-1 mb-2">
+        ✨ 湊十法小達人 (Make 10 Strategy) ✨
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-800 tracking-wider my-1">
+        3 + 9 = ?
+      </h1>
+      <!-- Guidance Prompt -->
+      <div id="guidance-box" class="mt-2 bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 inline-block transition-all duration-300">
+        <p id="guidance-text" class="text-base sm:text-xl font-bold text-amber-900 flex items-center justify-center gap-2">
+          <span>👉</span> 請移動 <span class="bg-blue-500 text-white px-2.5 py-0.5 rounded-full text-sm sm:text-base font-black shadow-sm">7 個藍圓片</span> 進入十格板湊成 10！
+          <span id="progress-badge" class="bg-amber-200 text-amber-900 px-3 py-0.5 rounded-full text-sm font-black border border-amber-400 ml-1">( 已移入 0 / 7 )</span>
+        </p>
+      </div>
+    </header>
+
+    <!-- Main Game Play Area -->
+    <main class="flex flex-col lg:flex-row items-center justify-around gap-6 my-2">
+
+      <!-- Left / Top: Ten-Frame Area -->
+      <div class="flex flex-col items-center">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xl font-extrabold text-amber-700 bg-amber-100 px-4 py-1 rounded-full border border-amber-300 shadow-sm">
+            十格板 (Ten-Frame) <span id="frame-counter" class="text-amber-900 font-black ml-1">( 3 / 10 )</span>
+          </span>
+        </div>
+
+        <!-- Ten Frame Board Container -->
+        <div id="ten-frame-container" class="bg-slate-700 p-3 sm:p-4 rounded-3xl shadow-xl border-4 border-slate-800 transition-all duration-500">
+          <div id="ten-frame-grid" class="grid grid-cols-5 gap-2 sm:gap-3 bg-slate-800 p-2 sm:p-3 rounded-2xl">
+            <!-- 10 Slots injected dynamically by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow Divider / Visual Helper -->
+      <div class="hidden lg:flex flex-col items-center justify-center text-slate-400 font-black text-3xl">
+        <span>➕</span>
+      </div>
+
+      <!-- Right / Bottom: Outside Tray Area -->
+      <div class="flex flex-col items-center">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xl font-extrabold text-blue-700 bg-blue-100 px-4 py-1 rounded-full border border-blue-300 shadow-sm">
+            外面 (Outside Area) <span id="outside-counter" class="text-blue-900 font-black ml-1">( 9 個藍圓片 )</span>
+          </span>
+        </div>
+
+        <!-- Outside Tray Box -->
+        <div id="outside-area" class="bg-blue-50/80 border-4 border-dashed border-blue-300 rounded-3xl p-4 sm:p-6 w-72 sm:w-80 min-h-[160px] flex items-center justify-center gap-3 sm:gap-4 flex-wrap transition-all duration-300 shadow-inner">
+          <!-- 9 Blue chips injected dynamically by JS -->
+        </div>
+      </div>
+    </main>
+
+    <!-- Mathematical Step-by-Step Breakdown Section -->
+    <section class="mt-6 bg-slate-50 border-2 border-slate-200 rounded-3xl p-4 sm:p-6 shadow-md transition-all">
+      <div class="text-center mb-3">
+        <h2 class="text-base sm:text-lg font-bold text-slate-600">💡 湊十思考步驟 (Make 10 Strategy)</h2>
+      </div>
+
+      <!-- Number Bond Diagram & Equation Stage -->
+      <div class="flex flex-col items-center justify-center gap-4">
+        
+        <!-- Equation Stages Container -->
+        <div id="equation-display" class="flex flex-col items-center gap-2">
+          <!-- Stage 1 (Initial) -->
+          <div class="text-2xl sm:text-3xl font-black text-slate-700 tracking-wider">
+            3 + 9
+          </div>
+
+          <!-- Stage 2 Breakdown (Appears when completed) -->
+          <div id="breakdown-step" class="hidden opacity-0 transition-all duration-700 transform translate-y-2 flex-col items-center">
+            
+            <!-- Number bond for 9 -->
+            <div class="flex items-center justify-center gap-2 text-base sm:text-lg font-bold text-amber-700 my-1 bg-amber-100/80 px-4 py-1.5 rounded-2xl border border-amber-200">
+              <span>把 <strong class="text-blue-600 text-xl font-black">9</strong> 拆成 <strong class="text-blue-600 text-xl font-black">7</strong> 和 <strong class="text-blue-600 text-xl font-black">2</strong></span>
+            </div>
+
+            <!-- Requested explicit formula: 3 + 9 = 3 + 7 + 2 = 12 -->
+            <div class="text-2xl sm:text-4xl font-black text-slate-800 tracking-wider my-2 bg-white px-6 py-3 rounded-2xl border-2 border-amber-300 shadow-md">
+              <span class="text-rose-500">3</span> + <span class="text-blue-500">9</span> 
+              = 
+              <span class="text-rose-500">3</span> + <span class="text-blue-600 underline decoration-amber-400 decoration-4">7</span> + <span class="text-blue-400">2</span> 
+              = 
+              <span class="text-emerald-600 font-black text-3xl sm:text-5xl ml-1">12</span>
+            </div>
+
+            <!-- Grouping 3 + 7 = 10 summary -->
+            <div id="step-summary" class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-base sm:text-xl font-bold text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-200">
+              <span>( <span class="text-rose-600">3</span> + <span class="text-blue-600">7</span> = <strong class="text-emerald-600 text-2xl font-black">10</strong> )</span>
+              <span>➔</span>
+              <span><strong class="text-emerald-600 text-2xl font-black">10</strong> + <span class="text-blue-500">2</span> = <strong class="text-emerald-600 text-2xl font-black">12</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Controls / Action Footer -->
+    <footer class="mt-6 flex flex-wrap items-center justify-between gap-4 border-t-2 border-slate-100 pt-4">
+      <button id="sound-btn" onclick="toggleSound()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-2xl font-bold transition shadow-sm border border-slate-300 active:scale-95">
+        <span id="sound-icon">🔊</span>
+        <span id="sound-label">音效：開啟</span>
+      </button>
+
+      <button onclick="resetGame()" class="flex items-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-lg sm:text-xl px-8 py-3 rounded-2xl shadow-lg transition transform hover:-translate-y-0.5 active:translate-y-0 active:scale-95 border-b-4 border-teal-800">
+        <span>🔄</span> 重新開始 (Play Again)
+      </button>
+    </footer>
+
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // Game Constants & State
+    const TARGET_NEEDED = 7; // Needs 7 blue chips to reach 10 (3 + 7 = 10)
+    let placedBlueCount = 0;
+    let isCompleted = false;
+    let soundEnabled = true;
+    let audioCtx = null;
+
+    // Web Audio API Synthesizer
+    function getAudioContext() {
+      if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContext();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById('sound-icon').textContent = soundEnabled ? '🔊' : '🔇';
+      document.getElementById('sound-label').textContent = soundEnabled ? '音效：開啟' : '音效：關閉';
+    }
+
+    function playPopSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(320 + placedBlueCount * 40, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(640 + placedBlueCount * 40, ctx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.08);
+      } catch (e) {}
+    }
+
+    function playSuccessFanfare() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          const startTime = ctx.currentTime + idx * 0.12;
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, startTime);
+          gain.gain.setValueAtTime(0, startTime);
+          gain.gain.linearRampToValueAtTime(0.25, startTime + 0.03);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + 0.4);
+        });
+      } catch (e) {}
+    }
+
+    function playWarningSound() {
+      if (!soundEnabled) return;
+      try {
+        const ctx = getAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(120, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.15);
+      } catch (e) {}
+    }
+
+    // Initialize Game Board
+    function initGame() {
+      isCompleted = false;
+      placedBlueCount = 0;
+
+      // Reset guidance UI
+      updateGuidanceUI();
+
+      // Reset counters
+      document.getElementById('frame-counter').textContent = '( 3 / 10 )';
+      document.getElementById('outside-counter').textContent = '( 9 個藍圓片 )';
+
+      // Reset Ten-Frame styling
+      const frameContainer = document.getElementById('ten-frame-container');
+      frameContainer.classList.remove('ten-frame-glow');
+
+      // Reset Equation Display
+      const breakdown = document.getElementById('breakdown-step');
+      breakdown.classList.add('hidden');
+      breakdown.classList.add('opacity-0');
+      breakdown.classList.add('translate-y-2');
+
+      // Render Ten-Frame Grid (3 Red Chips, 7 Target Empty Slots)
+      const grid = document.getElementById('ten-frame-grid');
+      grid.innerHTML = '';
+
+      for (let i = 0; i < 10; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-slate-900/60 border-2 border-slate-600 flex items-center justify-center relative transition-all duration-300';
+        
+        if (i < 3) {
+          // Red Chip (3 Initial)
+          slot.appendChild(createChip('red'));
+        } else {
+          // Empty slot (Slots 3 to 9)
+          const targetIndex = i - 3;
+          slot.id = `target-slot-${targetIndex}`;
+          slot.classList.add('border-dashed', 'border-amber-400', 'bg-amber-400/10', 'cursor-pointer');
+          
+          // Add drag and drop / touch listeners
+          slot.addEventListener('dragover', handleDragOver);
+          slot.addEventListener('dragleave', handleDragLeave);
+          slot.addEventListener('drop', handleDrop);
+          slot.addEventListener('click', handleSlotClick);
+
+          // Subtle prompt dot inside empty slot
+          const hintDot = document.createElement('div');
+          hintDot.className = 'w-4 h-4 rounded-full border-2 border-dashed border-amber-400/70 animate-ping';
+          slot.appendChild(hintDot);
+        }
+
+        grid.appendChild(slot);
+      }
+
+      // Render Outside Tray (9 Blue Chips)
+      const outsideArea = document.getElementById('outside-area');
+      outsideArea.innerHTML = '';
+
+      for (let i = 0; i < 9; i++) {
+        const chip = createChip('blue', i);
+        outsideArea.appendChild(chip);
+      }
+    }
+
+    // Helper: Create Chip Element
+    function createChip(color, id = 0) {
+      const chip = document.createElement('div');
+      chip.className = `w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center shadow-md transform transition-all duration-300 animate-pop ${
+        color === 'red'
+          ? 'bg-gradient-to-tr from-rose-600 to-red-400 border-2 border-rose-300 shadow-rose-900/50'
+          : 'bg-gradient-to-tr from-blue-600 to-sky-400 border-2 border-sky-200 shadow-blue-900/50 cursor-grab active:cursor-grabbing hover:scale-110'
+      }`;
+
+      if (color === 'blue') {
+        chip.draggable = true;
+        chip.id = `blue-chip-${id}`;
+        chip.addEventListener('dragstart', handleDragStart);
+        chip.addEventListener('click', handleBlueChipClick);
+      }
+
+      // Inner shine/ring for visual depth
+      const innerRing = document.createElement('div');
+      innerRing.className = 'w-7 h-7 sm:w-10 sm:h-10 rounded-full border border-white/40 bg-white/10';
+      chip.appendChild(innerRing);
+
+      return chip;
+    }
+
+    // Event Handlers for Drag & Drop
+    let draggedChipId = null;
+
+    function handleDragStart(e) {
+      if (isCompleted) {
+        e.preventDefault();
+        return;
+      }
+      getAudioContext();
+      draggedChipId = e.target.id;
+      e.dataTransfer.setData('text/plain', e.target.id);
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      if (isCompleted) return;
+      e.currentTarget.classList.add('slot-hover');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('slot-hover');
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('slot-hover');
+
+      if (isCompleted) {
+        showLockedWarning();
+        return;
+      }
+
+      executeMove();
+    }
+
+    function handleBlueChipClick() {
+      if (isCompleted) {
+        showLockedWarning();
+        return;
+      }
+      executeMove();
+    }
+
+    function handleSlotClick() {
+      if (isCompleted) {
+        showLockedWarning();
+        return;
+      }
+      executeMove();
+    }
+
+    function showLockedWarning() {
+      playWarningSound();
+      const frameContainer = document.getElementById('ten-frame-container');
+      frameContainer.classList.add('shake-anim');
+      setTimeout(() => frameContainer.classList.remove('shake-anim'), 450);
+
+      const guidanceText = document.getElementById('guidance-text');
+      guidanceText.innerHTML = `⚠️ <span class="text-rose-600 font-extrabold">十格板已經滿了（3 + 7 = 10），不能再放入圓片囉！</span>`;
+      setTimeout(() => {
+        if (isCompleted) {
+          guidanceText.innerHTML = `🎉 <span class="text-emerald-700 font-extrabold">太棒了！10 加 2 等於 12！湊十成功！</span>`;
+        }
+      }, 2500);
+    }
+
+    // Execute Move Logic
+    function executeMove() {
+      if (isCompleted || placedBlueCount >= TARGET_NEEDED) return;
+
+      playPopSound();
+
+      // Find one blue chip from outside tray
+      const outsideArea = document.getElementById('outside-area');
+      const blueChips = outsideArea.querySelectorAll('[id^="blue-chip-"]');
+
+      if (blueChips.length === 0) return;
+
+      const chipToMove = blueChips[0];
+      chipToMove.remove();
+
+      // Place inside current empty target slot
+      const emptySlot = document.getElementById(`target-slot-${placedBlueCount}`);
+      if (emptySlot) {
+        emptySlot.innerHTML = ''; // Clear hint dot
+        emptySlot.classList.remove('border-dashed', 'border-amber-400', 'bg-amber-400/10', 'cursor-pointer');
+        
+        const newBlueChip = createChip('blue', `placed-${placedBlueCount}`);
+        newBlueChip.draggable = false;
+        newBlueChip.classList.remove('cursor-grab', 'hover:scale-110');
+        newBlueChip.classList.add('cursor-default');
+        emptySlot.appendChild(newBlueChip);
+      }
+
+      placedBlueCount++;
+
+      // Update Live UI Counters
+      const currentTenFrameTotal = 3 + placedBlueCount;
+      const currentOutsideTotal = 9 - placedBlueCount;
+
+      document.getElementById('frame-counter').textContent = `( ${currentTenFrameTotal} / 10 )`;
+      document.getElementById('outside-counter').textContent = `( 剩 ${currentOutsideTotal} 個藍圓片 )`;
+
+      updateGuidanceUI();
+
+      // Check if 7 chips are moved (3 + 7 = 10 complete)
+      if (placedBlueCount === TARGET_NEEDED) {
+        triggerCompletion();
+      }
+    }
+
+    function updateGuidanceUI() {
+      const guidanceBox = document.getElementById('guidance-box');
+      const guidanceText = document.getElementById('guidance-text');
+
+      if (!isCompleted) {
+        guidanceBox.className = 'mt-2 bg-amber-50 border-2 border-amber-300 rounded-2xl p-3 inline-block transition-all duration-300';
+        guidanceText.innerHTML = `<span>👉</span> 請移動 <span class="bg-blue-500 text-white px-2.5 py-0.5 rounded-full text-sm sm:text-base font-black shadow-sm">7 個藍圓片</span> 進入十格板湊成 10！
+        <span id="progress-badge" class="bg-amber-200 text-amber-900 px-3 py-0.5 rounded-full text-sm font-black border border-amber-400 ml-1">( 已移入 ${placedBlueCount} / ${TARGET_NEEDED} )</span>`;
+      }
+    }
+
+    // Completion Sequence
+    function triggerCompletion() {
+      isCompleted = true;
+
+      // 1. Light up Ten-Frame
+      const frameContainer = document.getElementById('ten-frame-container');
+      frameContainer.classList.add('ten-frame-glow');
+
+      // 2. Update Counters
+      document.getElementById('frame-counter').textContent = '( 10 / 10 滿了！)';
+      document.getElementById('outside-counter').textContent = '( 剩 2 個藍圓片 )';
+
+      // 3. Update Guidance Text
+      const guidanceBox = document.getElementById('guidance-box');
+      const guidanceText = document.getElementById('guidance-text');
+      guidanceBox.className = 'mt-2 bg-emerald-50 border-2 border-emerald-400 rounded-2xl p-3 inline-block shadow-md transition-all duration-300';
+      guidanceText.innerHTML = `🎉 <span class="text-emerald-800 font-extrabold text-lg sm:text-xl">十格板湊成 10 囉！外面剩 2 個藍圓片，10 + 2 = 12！</span>`;
+
+      // 4. Lock remaining outside chips
+      const outsideArea = document.getElementById('outside-area');
+      const remainingChips = outsideArea.querySelectorAll('[id^="blue-chip-"]');
+      remainingChips.forEach(chip => {
+        chip.draggable = false;
+        chip.classList.remove('cursor-grab', 'hover:scale-110');
+        chip.classList.add('opacity-90', 'cursor-not-allowed');
+      });
+
+      // 5. Sound & Confetti
+      playSuccessFanfare();
+      launchConfetti();
+
+      // 6. Reveal Mathematical Breakdown
+      const breakdown = document.getElementById('breakdown-step');
+      breakdown.classList.remove('hidden');
+      setTimeout(() => {
+        breakdown.classList.remove('opacity-0', 'translate-y-2');
+      }, 100);
+    }
+
+    // Canvas Confetti Particle System
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      const particles = [];
+      const colors = ['#f59e0b', '#ef4444', '#3b82f6', '#10b981', '#ec4899', '#8b5cf6'];
+
+      for (let i = 0; i < 90; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2 - 50,
+          vx: (Math.random() - 0.5) * 16,
+          vy: (Math.random() - 0.8) * 16,
+          size: Math.random() * 10 + 6,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          rSpeed: (Math.random() - 0.5) * 10,
+          gravity: 0.35,
+          opacity: 1
+        });
+      }
+
+      let animationFrame;
+      function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let active = false;
+
+        particles.forEach(p => {
+          p.vy += p.gravity;
+          p.x += p.vx;
+          p.y += p.vy;
+          p.rotation += p.rSpeed;
+          p.opacity -= 0.008;
+
+          if (p.opacity > 0) {
+            active = true;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate((p.rotation * Math.PI) / 180);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = Math.max(0, p.opacity);
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+            ctx.restore();
+          }
+        });
+
+        if (active) {
+          animationFrame = requestAnimationFrame(render);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          cancelAnimationFrame(animationFrame);
+        }
+      }
+
+      render();
+    }
+
+    // Reset Game Function
+    function resetGame() {
+      getAudioContext();
+      playPopSound();
+      initGame();
+    }
+
+    // Handle Window Resize for Canvas
+    window.addEventListener('resize', () => {
+      const canvas = document.getElementById('confetti-canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    // Initialize Game on Load
+    window.onload = () => {
+      initGame();
+    };
+  </script>
+</body>
+</html>
